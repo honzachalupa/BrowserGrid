@@ -16,9 +16,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "212F44F72D3FD08C009DE151"
-               BuildableName = "SplitBrowser.app"
-               BlueprintName = "SplitBrowser"
-               ReferencedContainer = "container:SplitBrowser.xcodeproj">
+               BuildableName = "BrowserGrid.app"
+               BlueprintName = "BrowserGrid"
+               ReferencedContainer = "container:BrowserGrid.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -45,9 +45,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "212F44F72D3FD08C009DE151"
-            BuildableName = "SplitBrowser.app"
-            BlueprintName = "SplitBrowser"
-            ReferencedContainer = "container:SplitBrowser.xcodeproj">
+            BuildableName = "BrowserGrid.app"
+            BlueprintName = "BrowserGrid"
+            ReferencedContainer = "container:BrowserGrid.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -62,9 +62,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "212F44F72D3FD08C009DE151"
-            BuildableName = "SplitBrowser.app"
-            BlueprintName = "SplitBrowser"
-            ReferencedContainer = "container:SplitBrowser.xcodeproj">
+            BuildableName = "BrowserGrid.app"
+            BlueprintName = "BrowserGrid"
+            ReferencedContainer = "container:BrowserGrid.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>
