@@ -177,7 +177,7 @@ struct WebBrowserView: View {
     @State private var webView: WKWebView = WKWebView()
     
     var body: some View {
-        VStack {
+        ZStack {
             if url.isEmpty {
                 ContentUnavailableView("Enter URL", systemImage: "magnifyingglass")
             } else {
@@ -186,8 +186,7 @@ struct WebBrowserView: View {
                     .padding(2)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-        }
-        .overlay {
+            
             VStack {
                 WebBrowserControlsView(url: $url, webView: webView)
                 
@@ -301,7 +300,7 @@ struct ContentView: View {
                 HStack {
                     Text("Zoom:")
                     Slider(value: $zoom, in: 50.0...100.0, step: 5)
-                        .frame(width: 200)
+                        .frame(width: 150)
                     Text("\(String(format: "%.0f", zoom)) %")
                 }
                 .padding(.leading, 20)
