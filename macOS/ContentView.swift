@@ -100,7 +100,7 @@ struct WebBrowserControlsView: View {
     @State var nextUrl: String = ""
     @State var isControlsExpanded: Bool = false
     let webView: WKWebView
-    private var urlObserver: WebViewURLObserver?
+    var urlObserver: WebViewURLObserver?
     
     init(url: Binding<String>, webView: WKWebView) {
         self._url = url
@@ -144,12 +144,6 @@ struct WebBrowserControlsView: View {
                         
                         TextField("URL", text: $nextUrl)
                             .textFieldStyle(.plain)
-                            .onAppear {
-                                nextUrl = url
-                            }
-                            .onChange(of: webView.url?.absoluteString) {
-                                url = webView.url?.absoluteString ?? ""
-                            }
                             .onSubmit {
                                 submitUrl()
                             }
@@ -157,7 +151,7 @@ struct WebBrowserControlsView: View {
                         Button {
                             submitUrl()
                         } label: {
-                            Label("Open URL", systemImage: "chevron.right")
+                            Label("Open URL", systemImage: "magnifyingglass")
                                 .labelStyle(.iconOnly)
                         }
                         .buttonStyle(.plain)
@@ -196,20 +190,42 @@ struct WebBrowserControlsView: View {
             .buttonStyle(.borderedProminent)
             .tint(.primary)
         }
+        
+        .onAppear {
+            nextUrl = url
+            
+            if (url.isEmpty) {
+                isControlsExpanded = true
+            }
+        }
+        .onChange(of: url) {
+            if (url.isEmpty) {
+                isControlsExpanded = true
+            }
+        }
+        .onChange(of: webView.url?.absoluteString) {
+            url = webView.url?.absoluteString ?? ""
+        }
     }
 }
 
 struct WebBrowserView: View {
-    @Binding var url: String
+    var urlIndex: Int
     var zoom: Double
-    @State private var webView: WKWebView = WKWebView()
+    @AppStorage("urls") var urls: [String] = []
+    @State var url: String = ""
+    @State var webView: WKWebView = WKWebView()
+    
+    var persistedUrl: String {
+        urls[safe: urlIndex] ?? ""
+    }
     
     var body: some View {
         ZStack {
             if url.isEmpty {
-                ContentUnavailableView("Enter URL", systemImage: "magnifyingglass")
+                ContentUnavailableView("", systemImage: "globe", description: Text("Enter URL"))
             } else {
-                WebView(url: url, zoom: zoom, webView: $webView)
+                WebView(url: persistedUrl, zoom: zoom, webView: $webView)
                     .cornerRadius(10)
                     .padding(2)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -221,117 +237,127 @@ struct WebBrowserView: View {
                 Spacer()
             }
         }
-    }
-}
-
-enum LayoutVariant: CaseIterable {
-    case x2_y1, x2_y2, x3_y2, x3_y3, x4_y2, x4_y3
-    
-    var label: String {
-        switch self {
-            case .x2_y1:
-                return "2:1"
-            case .x2_y2:
-                return "2:2"
-            case .x3_y2:
-                return "3:2"
-            case .x3_y3:
-                return "3:3"
-            case .x4_y2:
-                return "4:2"
-            case .x4_y3:
-                return "4:3"
+        .onAppear {
+            url = persistedUrl
         }
-    }
-    
-    var gridColumns: [GridItem] {
-        switch self {
-            case .x2_y1, .x2_y2:
-                return [
-                    GridItem(.flexible(minimum: 100), spacing: 0),
-                    GridItem(.flexible(minimum: 100), spacing: 0)
-                ]
-            case .x3_y2, .x3_y3:
-                return [
-                    GridItem(.flexible(minimum: 100), spacing: 0),
-                    GridItem(.flexible(minimum: 100), spacing: 0),
-                    GridItem(.flexible(minimum: 100), spacing: 0)
-                ]
-            case .x4_y2, .x4_y3:
-                return [
-                    GridItem(.flexible(minimum: 100), spacing: 0),
-                    GridItem(.flexible(minimum: 100), spacing: 0),
-                    GridItem(.flexible(minimum: 100), spacing: 0),
-                    GridItem(.flexible(minimum: 100), spacing: 0)
-                ]
-        }
-    }
-    
-    var gridRowHeightDivider: CGFloat {
-        switch self {
-            case .x2_y1:
-                return 1
-            case .x2_y2, .x3_y2, .x4_y2:
-                return 2
-            case .x3_y3, .x4_y3:
-                return 3
+        .onChange(of: url) {
+            urls[urlIndex] = url
         }
     }
 }
 
 struct ContentView: View {
-    @State var layoutVariant: LayoutVariant? = .x3_y2 // TODO: Make it persistent using AppStorage
+    @AppStorage("urls") var urls: [String] = []
+    @AppStorage("columnsCount") var columnsCount: Double = 3
+    @AppStorage("rowsCount") var rowsCount: Double = 2
     @AppStorage("zoom") var zoom: Double = 70
+    @AppStorage("sideMenuVisibility") var sideMenuVisibility: NavigationSplitViewVisibility = .detailOnly
     
-    @AppStorage("url1") var url1: String = ""
-    @AppStorage("url2") var url2: String = ""
-    @AppStorage("url3") var url3: String = ""
-    @AppStorage("url4") var url4: String = ""
-    @AppStorage("url5") var url5: String = ""
-    @AppStorage("url6") var url6: String = ""
+    var columns: [GridItem] {
+        [GridItem](
+            repeating: GridItem(.flexible(minimum: 100), spacing: 0),
+            count: Int(columnsCount)
+        )
+    }
+    
+    func formatUrl(_ url: String) -> String {
+        return url.replacing(/^https?:\/\//, with: "").replacing(/\/$/, with: "")
+    }
     
     var body: some View {
-        VStack {
-            GeometryReader { geometry in
-                if let gridColumns = layoutVariant?.gridColumns, let gridRowHeightDivider = layoutVariant?.gridRowHeightDivider {
-                    LazyVGrid(columns: gridColumns, spacing: 0) {
-                        WebBrowserView(url: $url1, zoom: zoom)
-                            .frame(height: geometry.size.height / gridRowHeightDivider)
-                        WebBrowserView(url: $url2, zoom: zoom)
-                            .frame(height: geometry.size.height / gridRowHeightDivider)
-                        WebBrowserView(url: $url3, zoom: zoom)
-                            .frame(height: geometry.size.height / gridRowHeightDivider)
-                        WebBrowserView(url: $url4, zoom: zoom)
-                            .frame(height: geometry.size.height / gridRowHeightDivider)
-                        WebBrowserView(url: $url5, zoom: zoom)
-                            .frame(height: geometry.size.height / gridRowHeightDivider)
-                        WebBrowserView(url: $url6, zoom: zoom)
-                            .frame(height: geometry.size.height / gridRowHeightDivider)
-                    }
+        NavigationSplitView(columnVisibility: $sideMenuVisibility) {
+            HStack {
+                Button {
+                    urls.append("")
+                } label: {
+                    Label("New window", systemImage: "plus")
                 }
+                .buttonStyle(.borderless)
+                .padding(12)
+                
+                Spacer()
             }
-        }
-        .toolbar {
-            ToolbarItem(placement: .status) {
-                HStack {
-                    Text("Layout:")
-                    Picker("", selection: $layoutVariant) {
-                        ForEach(LayoutVariant.allCases, id: \.self) { layoutVariant in
-                            Text(layoutVariant.label)
-                                .tag(layoutVariant)
+            
+            if urls.isEmpty {
+                Text("No windows opened yet.")
+                    .padding(.top, 20)
+
+                Spacer()
+            } else {
+                List {
+                    Section("Opened windows") {
+                        ForEach(urls, id: \.self) { url in
+                            Text(formatUrl(url))
+                                .contextMenu {
+                                    Button("Close window") {
+                                        urls.removeAll { $0 == url }
+                                    }
+                                }
                         }
                     }
                 }
             }
-            
-            ToolbarItem(placement: .status) {
-                HStack {
-                    Text("Zoom:")
-                    Slider(value: $zoom, in: 50.0...100.0, step: 5)
-                        .frame(width: 150)
-                    Text("\(String(format: "%.0f", zoom)) %")
+        } detail: {
+            VStack {
+                GeometryReader { geometry in
+                    LazyVGrid(columns: columns, spacing: 0) {
+                        ForEach(0..<urls.count, id: \.self) { urlIndex in
+                            WebBrowserView(urlIndex: urlIndex, zoom: zoom)
+                                .frame(height: geometry.size.height / rowsCount)
+                        }
+                    }
                 }
-                .padding(.leading, 20)
+            }
+            .toolbar {
+                ToolbarItem(placement: .navigation) {
+                    Button {
+                        urls.append("")
+                    } label: {
+                        Label("New window", systemImage: "plus")
+                    }
+                }
+                
+                ToolbarItem(placement: .status) {
+                    HStack {
+                        Text("Columns:")
+                        Text(String(format: "%.0f", columnsCount))
+                        Stepper("Columns", value: $columnsCount, step: 1)
+                    }
+                }
+                
+                ToolbarItem(placement: .status) {
+                    HStack {
+                        Text("Rows:")
+                        Text(String(format: "%.0f", rowsCount))
+                        Stepper("Rows", value: $rowsCount, step: 1)
+                    }
+                }
+                
+                ToolbarItem(placement: .status) {
+                    HStack {
+                        Text("Zoom:")
+                        Slider(value: $zoom, in: 50.0...100.0, step: 5)
+                            .frame(width: 150)
+                        Text("\(String(format: "%.0f", zoom)) %")
+                    }
+                    .padding(.leading, 20)
+                }
+                
+                ToolbarItem {
+                    Button {
+                        // TODO: Reload all windows
+                    } label: {
+                        Label("Reload all windows", systemImage: "arrow.clockwise")
+                    }
+                }
+                
+                ToolbarItem {
+                    Button {
+                        urls = []
+                    } label: {
+                        Label("Close all windows", systemImage: "trash")
+                    }
+                }
             }
         }
     }
