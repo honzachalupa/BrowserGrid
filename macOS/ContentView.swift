@@ -53,6 +53,20 @@ struct WebView: NSViewRepresentable {
     }
 }
 
+class WebViewURLObserver: NSObject, WKNavigationDelegate {
+    @Binding var url: String
+    
+    init(url: Binding<String>) {
+        self._url = url
+    }
+    
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        if let currentURL = webView.url?.absoluteString {
+            url = currentURL
+        }
+    }
+}
+
 class NavigationDelegate: NSObject, WKNavigationDelegate {
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         /* if let currentURL = navigationAction.request.url?.absoluteString {
@@ -86,6 +100,17 @@ struct WebBrowserControlsView: View {
     @State var nextUrl: String = ""
     @State var isControlsExpanded: Bool = false
     let webView: WKWebView
+    private var urlObserver: WebViewURLObserver?
+    
+    init(url: Binding<String>, webView: WKWebView) {
+        self._url = url
+        self.webView = webView
+        self._nextUrl = State(initialValue: url.wrappedValue)
+        self.urlObserver = WebViewURLObserver(url: url)
+        
+        // Set the navigation delegate
+        webView.navigationDelegate = urlObserver
+    }
 
     func submitUrl() {
         withAnimation {
@@ -119,6 +144,12 @@ struct WebBrowserControlsView: View {
                         
                         TextField("URL", text: $nextUrl)
                             .textFieldStyle(.plain)
+                            .onAppear {
+                                nextUrl = url
+                            }
+                            .onChange(of: webView.url?.absoluteString) {
+                                url = webView.url?.absoluteString ?? ""
+                            }
                             .onSubmit {
                                 submitUrl()
                             }
@@ -164,9 +195,6 @@ struct WebBrowserControlsView: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(.primary)
-        }
-        .onAppear {
-            nextUrl = url
         }
     }
 }
