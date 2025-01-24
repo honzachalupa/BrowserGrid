@@ -1,35 +1,9 @@
 import SwiftUI
 @preconcurrency import WebKit
 
-class NavigationDelegate: NSObject, WKNavigationDelegate {
-    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-        if let currentURL = navigationAction.request.url?.absoluteString {
-            print("Navigating to URL: \(currentURL)")
-        }
-        decisionHandler(.allow)
-    }
-    
-    func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse, decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
-        decisionHandler(.allow)
-    }
-    
-    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        if let currentURL = webView.url?.absoluteString {
-            print("Finished loading URL: \(currentURL)")
-        }
-    }
-    
-    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-        print("Navigation failed with error: \(error.localizedDescription)")
-    }
-    
-    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-        print("Provisional navigation failed with error: \(error.localizedDescription)")
-    }
-}
-
 struct WebView: NSViewRepresentable {
     var url: String
+    var zoom: Double
     @Binding var webView: WKWebView
     
     class Coordinator: NSObject {
@@ -43,9 +17,9 @@ struct WebView: NSViewRepresentable {
         
         func configureWebView(_ webView: WKWebView) {
             DispatchQueue.main.async {
-                webView.pageZoom = 0.7
                 webView.allowsBackForwardNavigationGestures = true
                 webView.navigationDelegate = self.navigationDelegate
+                
                 self.parent.webView = webView
                 
                 if let validUrl = URL(string: self.parent.url) {
@@ -66,6 +40,7 @@ struct WebView: NSViewRepresentable {
         
         let webView = WKWebView(frame: .zero, configuration: configuration)
         context.coordinator.configureWebView(webView)
+        
         return webView
     }
     
@@ -73,7 +48,37 @@ struct WebView: NSViewRepresentable {
         if let validUrl = URL(string: url), webView.url?.absoluteString != url {
             webView.load(URLRequest(url: validUrl))
         }
+        
+        webView.pageZoom = zoom / 100
     }
+}
+
+class NavigationDelegate: NSObject, WKNavigationDelegate {
+    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        /* if let currentURL = navigationAction.request.url?.absoluteString {
+            print("Navigating to URL: \(currentURL)")
+        } */
+        
+        decisionHandler(.allow)
+    }
+    
+    /* func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse, decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
+        decisionHandler(.allow)
+    }
+    
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        if let currentURL = webView.url?.absoluteString {
+            print("Finished loading URL: \(currentURL)")
+        }
+    }
+    
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        print("Navigation failed with error: \(error.localizedDescription)")
+    }
+    
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        print("Provisional navigation failed with error: \(error.localizedDescription)")
+    } */
 }
 
 struct WebBrowserControlsView: View {
@@ -168,6 +173,7 @@ struct WebBrowserControlsView: View {
 
 struct WebBrowserView: View {
     @Binding var url: String
+    var zoom: Double
     @State private var webView: WKWebView = WKWebView()
     
     var body: some View {
@@ -175,7 +181,7 @@ struct WebBrowserView: View {
             if url.isEmpty {
                 ContentUnavailableView("Enter URL", systemImage: "magnifyingglass")
             } else {
-                WebView(url: url, webView: $webView)
+                WebView(url: url, zoom: zoom, webView: $webView)
                     .cornerRadius(10)
                     .padding(2)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -191,7 +197,65 @@ struct WebBrowserView: View {
     }
 }
 
+enum LayoutVariant: CaseIterable {
+    case x2_y1, x2_y2, x3_y2, x3_y3, x4_y2, x4_y3
+    
+    var label: String {
+        switch self {
+            case .x2_y1:
+                return "2:1"
+            case .x2_y2:
+                return "2:2"
+            case .x3_y2:
+                return "3:2"
+            case .x3_y3:
+                return "3:3"
+            case .x4_y2:
+                return "4:2"
+            case .x4_y3:
+                return "4:3"
+        }
+    }
+    
+    var gridColumns: [GridItem] {
+        switch self {
+            case .x2_y1, .x2_y2:
+                return [
+                    GridItem(.flexible(minimum: 100), spacing: 0),
+                    GridItem(.flexible(minimum: 100), spacing: 0)
+                ]
+            case .x3_y2, .x3_y3:
+                return [
+                    GridItem(.flexible(minimum: 100), spacing: 0),
+                    GridItem(.flexible(minimum: 100), spacing: 0),
+                    GridItem(.flexible(minimum: 100), spacing: 0)
+                ]
+            case .x4_y2, .x4_y3:
+                return [
+                    GridItem(.flexible(minimum: 100), spacing: 0),
+                    GridItem(.flexible(minimum: 100), spacing: 0),
+                    GridItem(.flexible(minimum: 100), spacing: 0),
+                    GridItem(.flexible(minimum: 100), spacing: 0)
+                ]
+        }
+    }
+    
+    var gridRowHeightDivider: CGFloat {
+        switch self {
+            case .x2_y1:
+                return 1
+            case .x2_y2, .x3_y2, .x4_y2:
+                return 2
+            case .x3_y3, .x4_y3:
+                return 3
+        }
+    }
+}
+
 struct ContentView: View {
+    @State var layoutVariant: LayoutVariant? = .x3_y2 // TODO: Make it persistent using AppStorage
+    @AppStorage("zoom") var zoom: Double = 70
+    
     @AppStorage("url1") var url1: String = ""
     @AppStorage("url2") var url2: String = ""
     @AppStorage("url3") var url3: String = ""
@@ -199,27 +263,48 @@ struct ContentView: View {
     @AppStorage("url5") var url5: String = ""
     @AppStorage("url6") var url6: String = ""
     
-    let columns = [
-        GridItem(.flexible(minimum: 100), spacing: 0),
-        GridItem(.flexible(minimum: 100), spacing: 0),
-        GridItem(.flexible(minimum: 100), spacing: 0)
-    ]
-    
     var body: some View {
-        GeometryReader { geometry in
-            LazyVGrid(columns: columns, spacing: 0) {
-                WebBrowserView(url: $url1)
-                    .frame(height: geometry.size.height / 2)
-                WebBrowserView(url: $url2)
-                    .frame(height: geometry.size.height / 2)
-                WebBrowserView(url: $url3)
-                    .frame(height: geometry.size.height / 2)
-                WebBrowserView(url: $url4)
-                    .frame(height: geometry.size.height / 2)
-                WebBrowserView(url: $url5)
-                    .frame(height: geometry.size.height / 2)
-                WebBrowserView(url: $url6)
-                    .frame(height: geometry.size.height / 2)
+        VStack {
+            GeometryReader { geometry in
+                if let gridColumns = layoutVariant?.gridColumns, let gridRowHeightDivider = layoutVariant?.gridRowHeightDivider {
+                    LazyVGrid(columns: gridColumns, spacing: 0) {
+                        WebBrowserView(url: $url1, zoom: zoom)
+                            .frame(height: geometry.size.height / gridRowHeightDivider)
+                        WebBrowserView(url: $url2, zoom: zoom)
+                            .frame(height: geometry.size.height / gridRowHeightDivider)
+                        WebBrowserView(url: $url3, zoom: zoom)
+                            .frame(height: geometry.size.height / gridRowHeightDivider)
+                        WebBrowserView(url: $url4, zoom: zoom)
+                            .frame(height: geometry.size.height / gridRowHeightDivider)
+                        WebBrowserView(url: $url5, zoom: zoom)
+                            .frame(height: geometry.size.height / gridRowHeightDivider)
+                        WebBrowserView(url: $url6, zoom: zoom)
+                            .frame(height: geometry.size.height / gridRowHeightDivider)
+                    }
+                }
+            }
+        }
+        .toolbar {
+            ToolbarItem(placement: .status) {
+                HStack {
+                    Text("Layout:")
+                    Picker("", selection: $layoutVariant) {
+                        ForEach(LayoutVariant.allCases, id: \.self) { layoutVariant in
+                            Text(layoutVariant.label)
+                                .tag(layoutVariant)
+                        }
+                    }
+                }
+            }
+            
+            ToolbarItem(placement: .status) {
+                HStack {
+                    Text("Zoom:")
+                    Slider(value: $zoom, in: 50.0...100.0, step: 5)
+                        .frame(width: 200)
+                    Text("\(String(format: "%.0f", zoom)) %")
+                }
+                .padding(.leading, 20)
             }
         }
     }
