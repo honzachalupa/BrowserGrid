@@ -6,5 +6,6 @@ struct SplitBrowserApp: App {
         WindowGroup {
             ContentView()
         }
+        .windowToolbarStyle(.unifiedCompact(showsTitle: false))
     }
 }

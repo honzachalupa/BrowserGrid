@@ -1,10 +1,38 @@
 import SwiftUI
 @preconcurrency import WebKit
 
+extension Notification.Name {
+    static let reloadAllWindows = Notification.Name("reloadAllWindows")
+}
+
 struct WebView: NSViewRepresentable {
-    var url: String
+    var urlString: String
     var zoom: Double
     @Binding var webView: WKWebView
+    
+    var validUrl: URL {
+        var validUrlString = urlString
+        
+        // ^(www)?(https?:\/\/)?[a-z]*\.[a-z]+
+        
+        /* guard let result = urlString.prefixMatch(of: /^(www)?(https?:\/\/)?[a-z]*\.[a-z]+/) else {
+            print("Invalid URL:", validUrlString)
+            
+            return URL(string: "")!
+        } */
+        
+        if (!urlString.starts(with: "http")) {
+            validUrlString = "https://" + urlString
+        }
+        
+        if let url = URL(string: validUrlString) {
+            return url
+        } else {
+            print("Invalid URL:", validUrlString)
+            
+            return URL(string: "")!
+        }
+    }
     
     class Coordinator: NSObject {
         var parent: WebView
@@ -21,10 +49,8 @@ struct WebView: NSViewRepresentable {
                 webView.navigationDelegate = self.navigationDelegate
                 
                 self.parent.webView = webView
-                
-                if let validUrl = URL(string: self.parent.url) {
-                    webView.load(URLRequest(url: validUrl))
-                }
+    
+                webView.load(URLRequest(url: self.parent.validUrl))
             }
         }
     }
@@ -45,24 +71,21 @@ struct WebView: NSViewRepresentable {
     }
     
     func updateNSView(_ webView: WKWebView, context: Context) {
-        if let validUrl = URL(string: url), webView.url?.absoluteString != url {
-            webView.load(URLRequest(url: validUrl))
-        }
-        
+        webView.load(URLRequest(url: validUrl))
         webView.pageZoom = zoom / 100
     }
 }
 
 class WebViewURLObserver: NSObject, WKNavigationDelegate {
-    @Binding var url: String
+    @Binding var urlString: String
     
-    init(url: Binding<String>) {
-        self._url = url
+    init(urlString: Binding<String>) {
+        self._urlString = urlString
     }
     
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         if let currentURL = webView.url?.absoluteString {
-            url = currentURL
+            urlString = currentURL
         }
     }
 }
@@ -96,25 +119,24 @@ class NavigationDelegate: NSObject, WKNavigationDelegate {
 }
 
 struct WebBrowserControlsView: View {
-    @Binding var url: String
-    @State var nextUrl: String = ""
+    @Binding var urlString: String
+    @State var nextUrlString: String = ""
     @State var isControlsExpanded: Bool = false
     let webView: WKWebView
     var urlObserver: WebViewURLObserver?
     
-    init(url: Binding<String>, webView: WKWebView) {
-        self._url = url
+    init(urlString: Binding<String>, webView: WKWebView) {
+        self._urlString = urlString
+        self._nextUrlString = State(initialValue: urlString.wrappedValue)
         self.webView = webView
-        self._nextUrl = State(initialValue: url.wrappedValue)
-        self.urlObserver = WebViewURLObserver(url: url)
+        self.urlObserver = WebViewURLObserver(urlString: urlString)
         
-        // Set the navigation delegate
         webView.navigationDelegate = urlObserver
     }
 
-    func submitUrl() {
+    func goToUrl() {
         withAnimation {
-            url = nextUrl
+            urlString = nextUrlString
             isControlsExpanded.toggle()
         }
     }
@@ -142,14 +164,14 @@ struct WebBrowserControlsView: View {
                         .buttonStyle(.plain)
                         .disabled(!webView.canGoForward)
                         
-                        TextField("URL", text: $nextUrl)
+                        TextField("URL", text: $nextUrlString)
                             .textFieldStyle(.plain)
                             .onSubmit {
-                                submitUrl()
+                                goToUrl()
                             }
                         
                         Button {
-                            submitUrl()
+                            goToUrl()
                         } label: {
                             Label("Open URL", systemImage: "magnifyingglass")
                                 .labelStyle(.iconOnly)
@@ -157,9 +179,9 @@ struct WebBrowserControlsView: View {
                         .buttonStyle(.plain)
                         
                         Button {
-                            url = ""
+                            urlString = ""
                             
-                            submitUrl()
+                            goToUrl()
                         } label: {
                             Label("Reload", systemImage: "arrow.clockwise")
                                 .labelStyle(.iconOnly)
@@ -190,21 +212,20 @@ struct WebBrowserControlsView: View {
             .buttonStyle(.borderedProminent)
             .tint(.primary)
         }
-        
         .onAppear {
-            nextUrl = url
+            nextUrlString = urlString
             
-            if (url.isEmpty) {
+            if (urlString.isEmpty) {
                 isControlsExpanded = true
             }
         }
-        .onChange(of: url) {
-            if (url.isEmpty) {
+        .onChange(of: urlString) {
+            if (urlString.isEmpty) {
                 isControlsExpanded = true
             }
         }
         .onChange(of: webView.url?.absoluteString) {
-            url = webView.url?.absoluteString ?? ""
+            urlString = webView.url?.absoluteString ?? ""
         }
     }
 }
@@ -213,35 +234,34 @@ struct WebBrowserView: View {
     var urlIndex: Int
     var zoom: Double
     @AppStorage("urls") var urls: [String] = []
-    @State var url: String = ""
+    @State var urlString: String = ""
     @State var webView: WKWebView = WKWebView()
-    
-    var persistedUrl: String {
-        urls[safe: urlIndex] ?? ""
-    }
     
     var body: some View {
         ZStack {
-            if url.isEmpty {
-                ContentUnavailableView("", systemImage: "globe", description: Text("Enter URL"))
+            if urlString.isEmpty {
+                ContentUnavailableView("Enter URL", systemImage: "globe")
             } else {
-                WebView(url: persistedUrl, zoom: zoom, webView: $webView)
-                    .cornerRadius(10)
-                    .padding(2)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                WebView(urlString: urlString, zoom: zoom, webView: $webView)
             }
             
             VStack {
-                WebBrowserControlsView(url: $url, webView: webView)
+                WebBrowserControlsView(urlString: $urlString, webView: webView)
                 
                 Spacer()
             }
         }
-        .onAppear {
-            url = persistedUrl
+        .onReceive(NotificationCenter.default.publisher(for: .reloadAllWindows)) { _ in
+            webView.reload()
         }
-        .onChange(of: url) {
-            urls[urlIndex] = url
+        .background(.background)
+        .cornerRadius(10)
+        .padding(2)
+        .onAppear {
+            urlString = urls[safe: urlIndex] ?? ""
+        }
+        .onChange(of: urlString) {
+            urls[urlIndex] = urlString
         }
     }
 }
@@ -255,42 +275,43 @@ struct ContentView: View {
     
     var columns: [GridItem] {
         [GridItem](
-            repeating: GridItem(.flexible(minimum: 100), spacing: 0),
+            repeating: GridItem(.flexible(minimum: 10), spacing: 0),
             count: Int(columnsCount)
         )
     }
     
-    func formatUrl(_ url: String) -> String {
+    func formatUrlString(_ url: String) -> String {
         return url.replacing(/^https?:\/\//, with: "").replacing(/\/$/, with: "")
+    }
+    
+    func openNewWindow() {
+        urls.append("")
+    }
+    
+    func closeWindow(_ urlString: String) {
+        urls.removeAll { $0 == urlString }
+    }
+    
+    func closeAllWindows() {
+        urls = []
+    }
+    
+    func reloadAllWindows() {
+        NotificationCenter.default.post(name: .reloadAllWindows, object: nil)
     }
     
     var body: some View {
         NavigationSplitView(columnVisibility: $sideMenuVisibility) {
-            HStack {
-                Button {
-                    urls.append("")
-                } label: {
-                    Label("New window", systemImage: "plus")
-                }
-                .buttonStyle(.borderless)
-                .padding(12)
-                
-                Spacer()
-            }
+            NoWindowsMessageView(urls: $urls)
             
-            if urls.isEmpty {
-                Text("No windows opened yet.")
-                    .padding(.top, 20)
-
-                Spacer()
-            } else {
+            if (!urls.isEmpty) {
                 List {
                     Section("Opened windows") {
-                        ForEach(urls, id: \.self) { url in
-                            Text(formatUrl(url))
+                        ForEach(urls, id: \.self) { urlString in
+                            Text(formatUrlString(urlString))
                                 .contextMenu {
                                     Button("Close window") {
-                                        urls.removeAll { $0 == url }
+                                        closeWindow(urlString)
                                     }
                                 }
                         }
@@ -298,7 +319,9 @@ struct ContentView: View {
                 }
             }
         } detail: {
-            VStack {
+            NoWindowsMessageView(urls: $urls)
+            
+            if (!urls.isEmpty) {
                 GeometryReader { geometry in
                     LazyVGrid(columns: columns, spacing: 0) {
                         ForEach(0..<urls.count, id: \.self) { urlIndex in
@@ -306,59 +329,17 @@ struct ContentView: View {
                                 .frame(height: geometry.size.height / rowsCount)
                         }
                     }
+                    .padding(3)
                 }
             }
-            .toolbar {
-                ToolbarItem(placement: .navigation) {
-                    Button {
-                        urls.append("")
-                    } label: {
-                        Label("New window", systemImage: "plus")
-                    }
-                }
-                
-                ToolbarItem(placement: .status) {
-                    HStack {
-                        Text("Columns:")
-                        Text(String(format: "%.0f", columnsCount))
-                        Stepper("Columns", value: $columnsCount, step: 1)
-                    }
-                }
-                
-                ToolbarItem(placement: .status) {
-                    HStack {
-                        Text("Rows:")
-                        Text(String(format: "%.0f", rowsCount))
-                        Stepper("Rows", value: $rowsCount, step: 1)
-                    }
-                }
-                
-                ToolbarItem(placement: .status) {
-                    HStack {
-                        Text("Zoom:")
-                        Slider(value: $zoom, in: 50.0...100.0, step: 5)
-                            .frame(width: 150)
-                        Text("\(String(format: "%.0f", zoom)) %")
-                    }
-                    .padding(.leading, 20)
-                }
-                
-                ToolbarItem {
-                    Button {
-                        // TODO: Reload all windows
-                    } label: {
-                        Label("Reload all windows", systemImage: "arrow.clockwise")
-                    }
-                }
-                
-                ToolbarItem {
-                    Button {
-                        urls = []
-                    } label: {
-                        Label("Close all windows", systemImage: "trash")
-                    }
-                }
-            }
+        }
+        .toolbar {
+            ToolbarAction_openNewWindow { openNewWindow() }
+            ToolbarAction_columnsCount(columnsCount: $columnsCount)
+            ToolbarAction_rowsCount(rowsCount: $rowsCount)
+            ToolbarAction_zoom(zoom: $zoom)
+            ToolbarAction_reloadAllWindows { reloadAllWindows() }
+            ToolbarAction_closeAllWindows { closeAllWindows() }
         }
     }
 }
