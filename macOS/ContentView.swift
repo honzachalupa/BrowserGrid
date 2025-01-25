@@ -6,33 +6,9 @@ extension Notification.Name {
 }
 
 struct WebView: NSViewRepresentable {
-    var urlString: String
+    var url: URL
     var zoom: Double
     @Binding var webView: WKWebView
-    
-    var validUrl: URL {
-        var validUrlString = urlString
-        
-        // ^(www)?(https?:\/\/)?[a-z]*\.[a-z]+
-        
-        /* guard let result = urlString.prefixMatch(of: /^(www)?(https?:\/\/)?[a-z]*\.[a-z]+/) else {
-            print("Invalid URL:", validUrlString)
-            
-            return URL(string: "")!
-        } */
-        
-        if (!urlString.starts(with: "http")) {
-            validUrlString = "https://" + urlString
-        }
-        
-        if let url = URL(string: validUrlString) {
-            return url
-        } else {
-            print("Invalid URL:", validUrlString)
-            
-            return URL(string: "")!
-        }
-    }
     
     class Coordinator: NSObject {
         var parent: WebView
@@ -50,7 +26,7 @@ struct WebView: NSViewRepresentable {
                 
                 self.parent.webView = webView
     
-                webView.load(URLRequest(url: self.parent.validUrl))
+                webView.load(URLRequest(url: self.parent.url))
             }
         }
     }
@@ -71,21 +47,21 @@ struct WebView: NSViewRepresentable {
     }
     
     func updateNSView(_ webView: WKWebView, context: Context) {
-        webView.load(URLRequest(url: validUrl))
+        webView.load(URLRequest(url: url))
         webView.pageZoom = zoom / 100
     }
 }
 
 class WebViewURLObserver: NSObject, WKNavigationDelegate {
-    @Binding var urlString: String
+    @Binding var url: URL?
     
-    init(urlString: Binding<String>) {
-        self._urlString = urlString
+    init(url: Binding<URL?>) {
+        self._url = url
     }
     
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        if let currentURL = webView.url?.absoluteString {
-            urlString = currentURL
+        if let currentURL = webView.url {
+            url = currentURL
         }
     }
 }
@@ -119,24 +95,24 @@ class NavigationDelegate: NSObject, WKNavigationDelegate {
 }
 
 struct WebBrowserControlsView: View {
-    @Binding var urlString: String
+    @Binding var url: URL?
     @State var nextUrlString: String = ""
     @State var isControlsExpanded: Bool = false
     let webView: WKWebView
     var urlObserver: WebViewURLObserver?
     
-    init(urlString: Binding<String>, webView: WKWebView) {
-        self._urlString = urlString
-        self._nextUrlString = State(initialValue: urlString.wrappedValue)
+    init(url: Binding<URL?>, webView: WKWebView) {
+        self._url = url
+        self._nextUrlString = State(initialValue: url.wrappedValue?.absoluteString ?? "")
         self.webView = webView
-        self.urlObserver = WebViewURLObserver(urlString: urlString)
+        self.urlObserver = WebViewURLObserver(url: url)
         
         webView.navigationDelegate = urlObserver
     }
 
     func goToUrl() {
         withAnimation {
-            urlString = nextUrlString
+            url = normalizeUrlString(nextUrlString)
             isControlsExpanded.toggle()
         }
     }
@@ -179,7 +155,7 @@ struct WebBrowserControlsView: View {
                         .buttonStyle(.plain)
                         
                         Button {
-                            urlString = ""
+                            url = nil
                             
                             goToUrl()
                         } label: {
@@ -213,19 +189,19 @@ struct WebBrowserControlsView: View {
             .tint(.primary)
         }
         .onAppear {
-            nextUrlString = urlString
+            nextUrlString = url?.absoluteString ?? ""
             
-            if (urlString.isEmpty) {
+            if (url == nil) {
                 isControlsExpanded = true
             }
         }
-        .onChange(of: urlString) {
-            if (urlString.isEmpty) {
+        .onChange(of: url) {
+            if (url == nil) {
                 isControlsExpanded = true
             }
         }
-        .onChange(of: webView.url?.absoluteString) {
-            urlString = webView.url?.absoluteString ?? ""
+        .onChange(of: webView.url) {
+            url = webView.url
         }
     }
 }
@@ -234,19 +210,19 @@ struct WebBrowserView: View {
     var urlIndex: Int
     var zoom: Double
     @AppStorage("urls") var urls: [String] = []
-    @State var urlString: String = ""
+    @State var url: URL?
     @State var webView: WKWebView = WKWebView()
     
     var body: some View {
         ZStack {
-            if urlString.isEmpty {
-                ContentUnavailableView("Enter URL", systemImage: "globe")
+            if let url {
+                WebView(url: url, zoom: zoom, webView: $webView)
             } else {
-                WebView(urlString: urlString, zoom: zoom, webView: $webView)
+                ContentUnavailableView("Enter URL", systemImage: "globe")
             }
             
             VStack {
-                WebBrowserControlsView(urlString: $urlString, webView: webView)
+                WebBrowserControlsView(url: $url, webView: webView)
                 
                 Spacer()
             }
@@ -258,10 +234,10 @@ struct WebBrowserView: View {
         .cornerRadius(10)
         .padding(2)
         .onAppear {
-            urlString = urls[safe: urlIndex] ?? ""
+            url = normalizeUrlString(urls[safe: urlIndex] ?? "")
         }
-        .onChange(of: urlString) {
-            urls[urlIndex] = urlString
+        .onChange(of: url) {
+            urls[urlIndex] = url?.absoluteString ?? ""
         }
     }
 }
