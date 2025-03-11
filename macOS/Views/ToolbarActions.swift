@@ -71,21 +71,6 @@ struct ToolbarAction_zoom: ToolbarContent {
     }
 }
 
-struct ToolbarAction_reloadAllWindows: ToolbarContent {
-    var onClick: () -> Void
-    
-    var body: some ToolbarContent {
-        ToolbarItem {
-            Button {
-                onClick()
-            } label: {
-                Label("Reload all windows", systemImage: "arrow.clockwise")
-                    .labelStyle(.titleAndIcon)
-            }
-        }
-    }
-}
-
 struct ToolbarAction_closeAllWindows: ToolbarContent {
     var onClick: () -> Void
     
@@ -118,7 +103,6 @@ struct ToolbarAction_closeAllWindows: ToolbarContent {
             ToolbarAction_columnsCount(columnsCount: $columnsCount)
             ToolbarAction_rowsCount(rowsCount: $rowsCount)
             ToolbarAction_zoom(zoom: $zoom)
-            ToolbarAction_reloadAllWindows(onClick: {})
             ToolbarAction_closeAllWindows(onClick: {})
         }
 }

@@ -1,0 +1,15 @@
+{
+  "originHash" : "05269905378f24f73d593332c134fb04acdd5c0e5fb8361aa6132fc0c4f164e4",
+  "pins" : [
+    {
+      "identity" : "swiftwebview",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/honzachalupa/SwiftWebView.git",
+      "state" : {
+        "revision" : "2e94bcd66c9f2981ad274b60913e68fd2f590aa2",
+        "version" : "1.0.0"
+      }
+    }
+  ],
+  "version" : 3
+}

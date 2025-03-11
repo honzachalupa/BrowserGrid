@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		2157FAC12D80B9D900144F90 /* SwiftWebView in Frameworks */ = {isa = PBXBuildFile; productRef = 2157FAC02D80B9D900144F90 /* SwiftWebView */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		212F44F82D3FD08C009DE151 /* BrowserGrid.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BrowserGrid.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2157FAC12D80B9D900144F90 /* SwiftWebView in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +70,7 @@
 			);
 			name = BrowserGrid;
 			packageProductDependencies = (
+				2157FAC02D80B9D900144F90 /* SwiftWebView */,
 			);
 			productName = SplitBrowser;
 			productReference = 212F44F82D3FD08C009DE151 /* BrowserGrid.app */;
@@ -94,6 +100,9 @@
 			);
 			mainGroup = 212F44EF2D3FD08C009DE151;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				2157FABF2D80B9D900144F90 /* XCRemoteSwiftPackageReference "SwiftWebView" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 212F44F92D3FD08C009DE151 /* Products */;
 			projectDirPath = "";
@@ -329,6 +338,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		2157FABF2D80B9D900144F90 /* XCRemoteSwiftPackageReference "SwiftWebView" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/honzachalupa/SwiftWebView.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		2157FAC02D80B9D900144F90 /* SwiftWebView */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2157FABF2D80B9D900144F90 /* XCRemoteSwiftPackageReference "SwiftWebView" */;
+			productName = SwiftWebView;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 212F44F02D3FD08C009DE151 /* Project object */;
 }
